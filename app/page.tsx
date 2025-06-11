@@ -205,8 +205,8 @@ export default function CryptoScamDetector() {
 
   return (
     <div className={`min-h-screen transition-colors ${darkMode ? "dark" : ""}`}>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors">
-        <div className="container mx-auto px-4 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 transition-colors">
+        <div className="container mx-auto px-4 py-12">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -251,7 +251,7 @@ export default function CryptoScamDetector() {
                   <Button 
                     onClick={analyzeToken} 
                     disabled={loading || !tokenInput.trim()}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600"
                   >
                     {loading ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -388,7 +388,7 @@ export default function CryptoScamDetector() {
 
               {/* Tabbed Analysis */}
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 dark:bg-gray-800">
+                <TabsList className="grid w-full grid-cols-4 dark:bg-gray-800 mb-6">
                   <TabsTrigger value="overview" className="dark:data-[state=active]:bg-gray-700">
                     <BarChart3 className="mr-2 h-4 w-4" />
                     Overview
@@ -806,7 +806,7 @@ export default function CryptoScamDetector() {
                               </CardDescription>
                             </CardHeader>
                             <CardContent>
-                              <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-sm overflow-x-auto max-h-96">
+                              <pre className="bg-gray-100 dark:bg-gray-800 p-6 rounded text-sm overflow-x-auto max-h-96">
                                 {JSON.stringify(analysis.apiData.coinGecko, null, 2)}
                               </pre>
                             </CardContent>
@@ -822,7 +822,7 @@ export default function CryptoScamDetector() {
                               </CardDescription>
                             </CardHeader>
                             <CardContent>
-                              <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-sm overflow-x-auto max-h-96">
+                              <pre className="bg-gray-100 dark:bg-gray-800 p-6 rounded text-sm overflow-x-auto max-h-96">
                                 {JSON.stringify(analysis.apiData.etherscan, null, 2)}
                               </pre>
                             </CardContent>
@@ -838,7 +838,7 @@ export default function CryptoScamDetector() {
                               </CardDescription>
                             </CardHeader>
                             <CardContent>
-                              <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-sm overflow-x-auto max-h-96">
+                              <pre className="bg-gray-100 dark:bg-gray-800 p-6 rounded text-sm overflow-x-auto max-h-96">
                                 {JSON.stringify(analysis.apiData.uniswap, null, 2)}
                               </pre>
                             </CardContent>
@@ -854,7 +854,7 @@ export default function CryptoScamDetector() {
                               </CardDescription>
                             </CardHeader>
                             <CardContent>
-                              <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-sm overflow-x-auto max-h-96">
+                              <pre className="bg-gray-100 dark:bg-gray-800 p-6 rounded text-sm overflow-x-auto max-h-96">
                                 {JSON.stringify(analysis.apiData.bitquery, null, 2)}
                               </pre>
                             </CardContent>
