@@ -27,6 +27,9 @@ import {
   TrendingDown,
   Shield,
   Users,
+  Droplet,
+  Briefcase,
+  UserCog,
 } from "lucide-react"
 import { WalletDistributionChart } from "@/components/wallet-distribution-chart"
 import { generatePDFReport } from "@/lib/pdf-generator"
@@ -369,21 +372,338 @@ export default function CryptoScamDetector() {
                 </CardContent>
               </Card>
 
-              {/* Red Flags */}
-              {analysis.redFlags.length > 0 && (
-                <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-                  <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  <AlertDescription>
-                    <div className="font-semibold text-red-800 dark:text-red-300 mb-2">
-                      ⚠️ Red Flags Detected:
+              {/* Dynamically construct red flags */}
+              {(() => {
+                let displayedRedFlags = [...(analysis.redFlags || [])];
+
+                if (analysis.advancedLiquidity) {
+                  if (!analysis.advancedLiquidity.lpTokenLocking?.isLocked ||
+                      (analysis.advancedLiquidity.lpTokenLocking?.lockedPercentage !== undefined && analysis.advancedLiquidity.lpTokenLocking.lockedPercentage < 50)) {
+                    displayedRedFlags.push("Significant LP tokens may be unlocked or locking is below 50%, increasing rug pull risk.");
+                  }
+                  if ((analysis.advancedLiquidity.liquidityConcentration?.top5LPsPercent ?? 0) > 75) {
+                    displayedRedFlags.push(`High LP concentration: Top 5 LPs hold ${analysis.advancedLiquidity.liquidityConcentration.top5LPsPercent.toFixed(1)}%.`);
+                  }
+                }
+
+                if (analysis.advancedChainAnalysis) {
+                  if ((analysis.advancedChainAnalysis.holderInsights?.whaleStats?.topHolderPercentage ?? 0) > 30) {
+                    displayedRedFlags.push(`High token concentration: Top whale holders control ${analysis.advancedChainAnalysis.holderInsights.whaleStats.topHolderPercentage.toFixed(1)}%.`);
+                  }
+                  if (analysis.advancedChainAnalysis.transactionalFlags?.honeypotIndicators?.sellFailsDetected) {
+                    displayedRedFlags.push("Potential Honeypot: Indications of transaction failures for sellers.");
+                  }
+                  if ((analysis.advancedChainAnalysis.transactionalFlags?.honeypotIndicators?.sellTax ?? 0) > 20) {
+                    displayedRedFlags.push(`High Sell Tax: Detected sell tax of ${analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.sellTax.toFixed(1)}%.`);
+                  }
+                  if ((analysis.advancedChainAnalysis.deployerReputation?.previousRiskyTokensCount ?? 0) > 0) {
+                    displayedRedFlags.push(`Deployer History: Associated with ${analysis.advancedChainAnalysis.deployerReputation.previousRiskyTokensCount} previously flagged/risky token(s).`);
+                  }
+                }
+                // Remove duplicates
+                displayedRedFlags = [...new Set(displayedRedFlags)];
+
+                return displayedRedFlags.length > 0 && (
+                  <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <AlertDescription>
+                      <div className="font-semibold text-red-800 dark:text-red-300 mb-2">
+                        ⚠️ Red Flags Detected:
+                      </div>
+                      <ul className="list-disc list-inside space-y-1 text-red-700 dark:text-red-400">
+                        {displayedRedFlags.map((flag, index) => (
+                          <li key={index}>{flag}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                );
+              })()}
+
+              {/* Advanced Liquidity Insights */}
+              {analysis.advancedLiquidity && (
+                <Card className="dark:border-gray-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-xl dark:text-white">
+                      <Droplet className="mr-2 h-5 w-5 text-blue-500" />
+                      Advanced Liquidity Insights
+                    </CardTitle>
+                    {analysis.advancedLiquidity.summary && (
+                      <CardDescription className="dark:text-gray-400 pt-1">
+                        {analysis.advancedLiquidity.summary}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Section 1: Overall Health & Pool Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="p-4 bg-muted/20 dark:bg-muted/20 rounded-lg"> {/* Sub-card */}
+                        <h4 className="font-semibold mb-2 dark:text-gray-200">Pool Details</h4>
+                        {analysis.advancedLiquidity.overallHealthScore !== undefined && (
+                          <div className="mb-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Overall Health: </span>
+                            <Badge variant={analysis.advancedLiquidity.overallHealthScore > 70 ? 'default' : (analysis.advancedLiquidity.overallHealthScore > 40 ? 'secondary' : 'destructive')}>
+                              {analysis.advancedLiquidity.overallHealthScore}/100
+                            </Badge>
+                          </div>
+                        )}
+                        {analysis.advancedLiquidity.tlvUSD !== undefined && (
+                          <p className="text-sm dark:text-gray-300">
+                            <span className="text-gray-600 dark:text-gray-400">Total Liquidity (USD):</span> ${analysis.advancedLiquidity.tlvUSD.toLocaleString()}
+                          </p>
+                        )}
+                        {analysis.advancedLiquidity.poolCreatedAt && (
+                          <p className="text-sm dark:text-gray-300">
+                            <span className="text-gray-600 dark:text-gray-400">Pool Created:</span> {new Date(analysis.advancedLiquidity.poolCreatedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                        {analysis.advancedLiquidity.poolAddress && (
+                          <p className="text-sm dark:text-gray-300 truncate">
+                            <span className="text-gray-600 dark:text-gray-400">Pool Address:</span>
+                            <a href={`https://etherscan.io/address/${analysis.advancedLiquidity.poolAddress}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">
+                              {analysis.advancedLiquidity.poolAddress}
+                            </a>
+                          </p>
+                        )}
+                        {analysis.advancedLiquidity.pairedTokenReputation && (
+                           <p className="text-sm dark:text-gray-300">
+                             <span className="text-gray-600 dark:text-gray-400">Paired Asset Type:</span> <span className="capitalize">{analysis.advancedLiquidity.pairedTokenReputation}</span>
+                           </p>
+                        )}
+                        {/* Basic TLV Trend representation */}
+                        {analysis.advancedLiquidity.tlvTrend7d && analysis.advancedLiquidity.tlvTrend7d.length > 1 && (
+                          <p className="text-sm dark:text-gray-300">
+                            <span className="text-gray-600 dark:text-gray-400">TLV Trend (7d):</span>
+                            {analysis.advancedLiquidity.tlvTrend7d[analysis.advancedLiquidity.tlvTrend7d.length - 1] > analysis.advancedLiquidity.tlvTrend7d[0] ?
+                              <span className="text-green-500">Increasing</span> :
+                              (analysis.advancedLiquidity.tlvTrend7d[analysis.advancedLiquidity.tlvTrend7d.length - 1] < analysis.advancedLiquidity.tlvTrend7d[0] ?
+                                <span className="text-red-500">Decreasing</span> :
+                                <span className="text-gray-500">Stable</span>)
+                            }
+                          </p>
+                        )}
+                      </Card>
+
+                      <Card className="p-4 bg-muted/20 dark:bg-muted/20 rounded-lg"> {/* Sub-card */}
+                        <h4 className="font-semibold mb-2 dark:text-gray-200">LP Token Locking</h4>
+                        {analysis.advancedLiquidity.lpTokenLocking ? (
+                          <>
+                            <p className="text-sm dark:text-gray-300 mb-1">
+                              <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                              {analysis.advancedLiquidity.lpTokenLocking.isLocked ?
+                                <span className="text-green-500 font-semibold">Significant Locking Detected</span> :
+                                <span className="text-yellow-500 font-semibold">No Major Locking / Unknown</span>}
+                            </p>
+                            {analysis.advancedLiquidity.lpTokenLocking.isLocked && analysis.advancedLiquidity.lpTokenLocking.lockedPercentage !== undefined && (
+                              <p className="text-sm dark:text-gray-300 mb-1">
+                                <span className="text-gray-600 dark:text-gray-400">Percentage Locked:</span> {analysis.advancedLiquidity.lpTokenLocking.lockedPercentage.toFixed(2)}%
+                              </p>
+                            )}
+                            {analysis.advancedLiquidity.lpTokenLocking.details && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 italic">
+                                {analysis.advancedLiquidity.lpTokenLocking.details}
+                              </p>
+                            )}
+                            {analysis.advancedLiquidity.lpTokenLocking.lockerContracts && analysis.advancedLiquidity.lpTokenLocking.lockerContracts.length > 0 && (
+                              <div>
+                                <h5 className="text-xs font-semibold dark:text-gray-300 mb-1">Known Lockers:</h5>
+                                <ul className="list-disc list-inside pl-1 space-y-1">
+                                  {analysis.advancedLiquidity.lpTokenLocking.lockerContracts.map(lock => (
+                                    <li key={lock.address} className="text-xs dark:text-gray-400">
+                                      {lock.name}: {(lock.lockedAmount / 1e18).toFixed(2)} LP Tokens (approx)
+                                      <a href={`https://etherscan.io/address/${lock.address}`} target="_blank" rel="noopener noreferrer" className="ml-1">
+                                        <ExternalLink className="inline h-3 w-3 text-blue-500" />
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </>
+                        ) : <p className="text-sm text-gray-500 dark:text-gray-400">Data not available.</p>}
+                      </Card>
                     </div>
-                    <ul className="list-disc list-inside space-y-1 text-red-700 dark:text-red-400">
-                      {analysis.redFlags.map((flag, index) => (
-                        <li key={index}>{flag}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
+
+                    {/* Section 2: Liquidity Concentration */}
+                    {analysis.advancedLiquidity.liquidityConcentration && (
+                      <Card className="p-4 bg-muted/20 dark:bg-muted/20 rounded-lg"> {/* Sub-card */}
+                        <h4 className="font-semibold mb-2 dark:text-gray-200">Liquidity Provider Concentration</h4>
+                        <div className="space-y-2">
+                          {analysis.advancedLiquidity.liquidityConcentration.top5LPsPercent !== undefined && (
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="dark:text-gray-300">Top 5 LPs Hold:</span>
+                                <span className="font-semibold dark:text-white">{analysis.advancedLiquidity.liquidityConcentration.top5LPsPercent.toFixed(2)}%</span>
+                              </div>
+                              {/* Basic progress bar */}
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${analysis.advancedLiquidity.liquidityConcentration.top5LPsPercent}%` }}></div>
+                              </div>
+                            </div>
+                          )}
+                          {analysis.advancedLiquidity.liquidityConcentration.top10LPsPercent !== undefined && (
+                            <div className="mt-3">
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="dark:text-gray-300">Top 10 LPs Hold:</span>
+                                <span className="font-semibold dark:text-white">{analysis.advancedLiquidity.liquidityConcentration.top10LPsPercent.toFixed(2)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                <div className="bg-sky-500 h-2.5 rounded-full" style={{ width: `${analysis.advancedLiquidity.liquidityConcentration.top10LPsPercent}%` }}></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Advanced On-Chain Insights */}
+              {analysis.advancedChainAnalysis && (
+                <Card className="dark:border-gray-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center text-xl dark:text-white">
+                      <Briefcase className="mr-2 h-5 w-5 text-purple-500" /> {/* Icon for On-Chain Insights */}
+                      Advanced On-Chain Insights
+                    </CardTitle>
+                    {analysis.advancedChainAnalysis.summary && (
+                      <CardDescription className="dark:text-gray-400 pt-1">
+                        {analysis.advancedChainAnalysis.summary}
+                      </CardDescription>
+                    )}
+                    {analysis.advancedChainAnalysis.overallOnChainScore !== undefined && (
+                      <div className="pt-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Overall On-Chain Score: </span>
+                        <Badge variant={analysis.advancedChainAnalysis.overallOnChainScore > 70 ? 'default' : (analysis.advancedChainAnalysis.overallOnChainScore > 40 ? 'secondary' : 'destructive')}>
+                          {analysis.advancedChainAnalysis.overallOnChainScore}/100
+                        </Badge>
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+
+                    {/* Holder Insights Section */}
+                    {analysis.advancedChainAnalysis.holderInsights && (
+                      <Card className="p-4 bg-muted/20 dark:bg-muted/20 rounded-lg">
+                        <CardHeader className="p-0 pb-2">
+                          <CardTitle className="flex items-center text-lg dark:text-gray-200">
+                            <Users className="mr-2 h-5 w-5 text-indigo-500" />
+                            Holder Activity & Whale Watch
+                          </CardTitle>
+                          {analysis.advancedChainAnalysis.holderInsights.summary && (
+                            <CardDescription className="text-xs dark:text-gray-400 pt-1">
+                              {analysis.advancedChainAnalysis.holderInsights.summary}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+                        <CardContent className="p-0 text-sm space-y-1 dark:text-gray-300">
+                          {analysis.advancedChainAnalysis.holderInsights.churnRate30d !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">30d Churn Rate:</span> {analysis.advancedChainAnalysis.holderInsights.churnRate30d.toFixed(1)}%</p>
+                          )}
+                          {analysis.advancedChainAnalysis.holderInsights.newHolderCount30d !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">New Holders (30d):</span> {analysis.advancedChainAnalysis.holderInsights.newHolderCount30d}</p>
+                          )}
+                           {analysis.advancedChainAnalysis.holderInsights.averageHolderLifespan !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">Avg. Holder Lifespan:</span> {analysis.advancedChainAnalysis.holderInsights.averageHolderLifespan.toFixed(0)} days</p>
+                          )}
+                          {analysis.advancedChainAnalysis.holderInsights.diamondHandsPercent !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">"Diamond Hands" (holding > 90d):</span> {analysis.advancedChainAnalysis.holderInsights.diamondHandsPercent.toFixed(1)}%</p>
+                          )}
+                          {analysis.advancedChainAnalysis.holderInsights.whaleStats && (
+                            <>
+                              <p><span className="text-gray-600 dark:text-gray-400">Top 10 Holders Control:</span> {analysis.advancedChainAnalysis.holderInsights.whaleStats.topHolderPercentage.toFixed(1)}%</p>
+                              {analysis.advancedChainAnalysis.holderInsights.whaleStats.recentWhaleOutflowUSD !== undefined && (
+                                <p><span className="text-gray-600 dark:text-gray-400">Recent Whale Outflow (7d):</span> ${analysis.advancedChainAnalysis.holderInsights.whaleStats.recentWhaleOutflowUSD.toLocaleString()}</p>
+                              )}
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Transactional Flags Section */}
+                    {analysis.advancedChainAnalysis.transactionalFlags && (
+                      <Card className="p-4 bg-muted/20 dark:bg-muted/20 rounded-lg">
+                        <CardHeader className="p-0 pb-2">
+                          <CardTitle className="flex items-center text-lg dark:text-gray-200">
+                            <AlertTriangle className="mr-2 h-5 w-5 text-orange-500" />
+                            Transactional Red Flags
+                          </CardTitle>
+                           {analysis.advancedChainAnalysis.transactionalFlags.summary && (
+                            <CardDescription className="text-xs dark:text-gray-400 pt-1">
+                              {analysis.advancedChainAnalysis.transactionalFlags.summary}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+                        <CardContent className="p-0 text-sm space-y-1 dark:text-gray-300">
+                          {analysis.advancedChainAnalysis.transactionalFlags.potentialWashTradingPercent !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">Potential Wash Trading:</span> {analysis.advancedChainAnalysis.transactionalFlags.potentialWashTradingPercent.toFixed(1)}%</p>
+                          )}
+                          {analysis.advancedChainAnalysis.transactionalFlags.unexplainedVolumeSpikes && analysis.advancedChainAnalysis.transactionalFlags.unexplainedVolumeSpikes.length > 0 && (
+                            <div>
+                              <span className="text-gray-600 dark:text-gray-400">Unexplained Volume Spikes:</span>
+                              <ul className="list-disc list-inside pl-4">
+                                {analysis.advancedChainAnalysis.transactionalFlags.unexplainedVolumeSpikes.map(spike => (
+                                  <li key={spike.date}>{new Date(spike.date).toLocaleDateString()}: +{spike.volumeIncreasePercent.toFixed(0)}%</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators && (
+                            <>
+                              <p><span className="text-gray-600 dark:text-gray-400">Sell Fails Detected (Honeypot?):</span> {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.sellFailsDetected ? <span className="text-red-500">Yes</span> : 'No'}</p>
+                              {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.buyTax !== undefined && (
+                                 <p><span className="text-gray-600 dark:text-gray-400">Buy Tax:</span> {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.buyTax.toFixed(1)}%</p>
+                              )}
+                              {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.sellTax !== undefined && (
+                                 <p><span className="text-gray-600 dark:text-gray-400">Sell Tax:</span> {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.sellTax.toFixed(1)}%</p>
+                              )}
+                              {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.transferPausable !== undefined && (
+                                 <p><span className="text-gray-600 dark:text-gray-400">Transfers Pausable:</span> {analysis.advancedChainAnalysis.transactionalFlags.honeypotIndicators.transferPausable ? <span className="text-yellow-500">Yes</span> : 'No'}</p>
+                              )}
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Deployer Reputation Section */}
+                    {analysis.advancedChainAnalysis.deployerReputation && (
+                      <Card className="p-4 bg-muted/20 dark:bg-muted/20 rounded-lg">
+                        <CardHeader className="p-0 pb-2">
+                          <CardTitle className="flex items-center text-lg dark:text-gray-200">
+                            <UserCog className="mr-2 h-5 w-5 text-teal-500" /> {/* Using UserCog as it's more specific */}
+                            Deployer Footprint
+                          </CardTitle>
+                          {analysis.advancedChainAnalysis.deployerReputation.summary && (
+                            <CardDescription className="text-xs dark:text-gray-400 pt-1">
+                              {analysis.advancedChainAnalysis.deployerReputation.summary}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+                        <CardContent className="p-0 text-sm space-y-1 dark:text-gray-300">
+                          {analysis.advancedChainAnalysis.deployerReputation.deployerAddress && (
+                            <p className="truncate"><span className="text-gray-600 dark:text-gray-400">Address:</span>
+                              <a href={`https://etherscan.io/address/${analysis.advancedChainAnalysis.deployerReputation.deployerAddress}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">
+                                {analysis.advancedChainAnalysis.deployerReputation.deployerAddress} <ExternalLink className="inline h-3 w-3" />
+                              </a>
+                            </p>
+                          )}
+                          {analysis.advancedChainAnalysis.deployerReputation.deployerAgeDays !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">Age:</span> {analysis.advancedChainAnalysis.deployerReputation.deployerAgeDays} days</p>
+                          )}
+                          {analysis.advancedChainAnalysis.deployerReputation.contractsDeployedCount !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">Contracts Deployed:</span> {analysis.advancedChainAnalysis.deployerReputation.contractsDeployedCount}</p>
+                          )}
+                          {analysis.advancedChainAnalysis.deployerReputation.previousRiskyTokensCount !== undefined && (
+                            <p><span className="text-gray-600 dark:text-gray-400">Previously Flagged Tokens by Owner:</span> {analysis.advancedChainAnalysis.deployerReputation.previousRiskyTokensCount > 0 ? <span className="text-red-500">{analysis.advancedChainAnalysis.deployerReputation.previousRiskyTokensCount}</span> : '0'}</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </CardContent>
+                </Card>
               )}
 
               {/* Tabbed Analysis */}
