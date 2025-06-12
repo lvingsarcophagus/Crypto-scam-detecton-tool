@@ -13,6 +13,7 @@ interface ApiDataDetailsProps {
     etherscan?: any
     uniswap?: any
     bitquery?: any
+    tokenMetrics?: any
   }
 }
 
@@ -337,6 +338,116 @@ export function ApiDataDetails({ tokenInfo, apiData }: ApiDataDetailsProps) {
     )
   }
 
+  const renderTokenMetricsData = () => {
+    const data = apiData.tokenMetrics
+
+    if (!data) {
+      return (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <AlertTriangle className="mx-auto h-8 w-8 mb-2 opacity-50" />
+          <p>No TokenMetrics data available</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Risk Analysis */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Risk Analysis</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Risk Score</div>
+                <div className="text-sm font-medium">
+                  <Badge variant={data.analytics?.risk_score > 70 ? "destructive" : data.analytics?.risk_score > 40 ? "secondary" : "default"}>
+                    {data.analytics?.risk_score || "N/A"}/100
+                  </Badge>
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">Liquidity Score</div>
+                <div className="text-sm font-medium">
+                  <Badge variant={data.analytics?.liquidity_score > 70 ? "default" : data.analytics?.liquidity_score > 40 ? "secondary" : "destructive"}>
+                    {data.analytics?.liquidity_score || "N/A"}/100
+                  </Badge>
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">Volatility Score</div>
+                <div className="text-sm font-medium">
+                  <Badge variant={data.analytics?.volatility_score > 70 ? "destructive" : data.analytics?.volatility_score > 40 ? "secondary" : "default"}>
+                    {data.analytics?.volatility_score || "N/A"}/100
+                  </Badge>
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">Market Cap Rank</div>
+                <div className="text-sm font-medium">{data.analytics?.market_cap_rank || "N/A"}</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Market Data</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Market Cap</div>
+                <div className="text-sm font-medium">
+                  ${data.market_cap?.toLocaleString() || "N/A"}
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">24h Volume</div>
+                <div className="text-sm font-medium">
+                  ${data.volume_24h?.toLocaleString() || "N/A"}
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">Current Price</div>
+                <div className="text-sm font-medium">${data.price?.toLocaleString() || "N/A"}</div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400">Total Supply</div>
+                <div className="text-sm font-medium">
+                  {data.total_supply?.toLocaleString() || "N/A"}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Exchange Information */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Exchange Information</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              <div className="text-sm text-gray-500 dark:text-gray-400">Available Exchanges</div>
+              <div className="flex flex-wrap gap-1">
+                {data.exchanges && data.exchanges.length > 0 ? (
+                  data.exchanges.map((exchange: string, index: number) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {exchange}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm">No exchange data available</span>
+                )}
+              </div>
+
+              {data.contract_address && (
+                <>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Contract Address</div>
+                  <div className="text-sm font-medium font-mono break-all">{data.contract_address}</div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -345,11 +456,12 @@ export function ApiDataDetails({ tokenInfo, apiData }: ApiDataDetailsProps) {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 mb-4">
+          <TabsList className="grid grid-cols-5 mb-4">
             <TabsTrigger value="overview">CoinGecko</TabsTrigger>
             <TabsTrigger value="etherscan">Etherscan</TabsTrigger>
             <TabsTrigger value="uniswap">Uniswap</TabsTrigger>
             <TabsTrigger value="bitquery">BitQuery</TabsTrigger>
+            <TabsTrigger value="tokenmetrics">TokenMetrics</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
             {renderCoinGeckoData()}
@@ -362,6 +474,9 @@ export function ApiDataDetails({ tokenInfo, apiData }: ApiDataDetailsProps) {
           </TabsContent>
           <TabsContent value="bitquery" className="space-y-4">
             {renderBitqueryData()}
+          </TabsContent>
+          <TabsContent value="tokenmetrics" className="space-y-4">
+            {renderTokenMetricsData()}
           </TabsContent>
         </Tabs>
       </CardContent>

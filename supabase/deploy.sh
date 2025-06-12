@@ -44,6 +44,9 @@ supabase secrets set UNISWAP_API_KEY=96aa054ab6f519bb3c0a18aa84a558a5
 echo "Setting ETHERSCAN_API_KEY..."
 supabase secrets set ETHERSCAN_API_KEY=1YGS5YN6FPREFTHWRHXQM38YB7EXVUQSEU
 
+echo "Setting TOKENMETRICS_API_KEY..."
+supabase secrets set TOKENMETRICS_API_KEY=tm-7e42cfa3-418c-4bcf-9caa-76e33f9bab26
+
 echo "✅ Environment variables set successfully!"
 
 # List functions to verify deployment

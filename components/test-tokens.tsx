@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface TestTokensProps {
-  onTokenSelect: (token: string) => void
+  onSelectToken: (token: string) => void
 }
 
-export function TestTokens({ onTokenSelect }: TestTokensProps) {
+export function TestTokens({ onSelectToken }: TestTokensProps) {
   const testTokens = [
     {
       name: "USD Coin",
@@ -54,7 +54,7 @@ export function TestTokens({ onTokenSelect }: TestTokensProps) {
                   <h3 className="font-semibold">{token.name}</h3>
                   <p className="text-sm text-gray-600">{token.symbol}</p>
                 </div>
-                <Button size="sm" onClick={() => onTokenSelect(token.address)} variant="outline">
+                <Button size="sm" onClick={() => onSelectToken(token.address)} variant="outline">
                   Test
                 </Button>
               </div>

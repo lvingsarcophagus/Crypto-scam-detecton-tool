@@ -72,14 +72,14 @@ interface TokenAnalysis {
     percentage: number
     address?: string
   }[]
-  tokenInfo: {    name: string
+  tokenInfo: {
+    name: string
     symbol: string
     address: string
     marketCap: number
     volume24h: number
     price: number
-  }
-  apiData?: {
+  }  apiData?: {
     coinGecko?: any
     etherscan?: any
     uniswap?: any

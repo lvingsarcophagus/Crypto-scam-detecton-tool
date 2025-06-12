@@ -1,233 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-// Enhanced TokenMetrics data fetcher for advanced analytics
-async function fetchTokenMetricsData(token: string, apiKey?: string) {
-  try {
-    if (!apiKey) {
-      console.log("Skipping TokenMetrics - no API key");
-      return null;
-    }
-
-    let tmData = null;
-
-    // Try contract address lookup first if it's an Ethereum address
-    if (token.startsWith("0x") && token.length === 42) {
-      console.log(`Fetching TokenMetrics contract data for: ${token}`);
-      
-      const contractUrl = `https://api.tokenmetrics.com/v1/tokens/info`;
-      const contractParams = new URLSearchParams({
-        contract_address: token,
-        chain: "ethereum"
-      });
-
-      const contractResponse = await fetch(`${contractUrl}?${contractParams}`, {
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Accept": "application/json",
-          "User-Agent": "Crypto-Scam-Detector/1.0"
-        }
-      });
-
-      if (contractResponse.ok) {
-        const contractData = await contractResponse.json();
-        if (contractData.success && contractData.data) {
-          tmData = contractData.data;
-          console.log(`TokenMetrics contract data found for: ${token}`);
-
-          // Get additional analytics data
-          try {
-            const analyticsUrl = `https://api.tokenmetrics.com/v1/analytics/token`;
-            const analyticsParams = new URLSearchParams({
-              contract_address: token,
-              chain: "ethereum"
-            });
-
-            const analyticsResponse = await fetch(`${analyticsUrl}?${analyticsParams}`, {
-              headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Accept": "application/json"
-              }
-            });
-
-            if (analyticsResponse.ok) {
-              const analyticsData = await analyticsResponse.json();
-              if (analyticsData.success && analyticsData.data) {
-                tmData = { ...tmData, analytics: analyticsData.data };
-                console.log(`TokenMetrics analytics data retrieved for: ${token}`);
-              }
-            }
-          } catch (analyticsError) {
-            console.log("TokenMetrics analytics data fetch failed:", analyticsError);
-          }
-        }
-      } else {
-        console.log(`TokenMetrics contract lookup failed: ${contractResponse.status}`);
-      }
-    }
-
-    // If contract lookup failed or not a contract address, try symbol search
-    if (!tmData) {
-      console.log(`Searching TokenMetrics by symbol: ${token}`);
-      
-      const searchUrl = `https://api.tokenmetrics.com/v1/search`;
-      const searchParams = new URLSearchParams({
-        query: token.toUpperCase(),
-        type: "token"
-      });
-
-      const searchResponse = await fetch(`${searchUrl}?${searchParams}`, {
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Accept": "application/json"
-        }
-      });
-
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        if (searchData.success && searchData.data?.length > 0) {
-          // Get the first result
-          const tokenInfo = searchData.data[0];
-          console.log(`Found TokenMetrics token: ${tokenInfo.name} (${tokenInfo.symbol})`);
-
-          // Get detailed token data
-          try {
-            const detailUrl = `https://api.tokenmetrics.com/v1/tokens/info`;
-            const detailParams = new URLSearchParams({
-              token_id: tokenInfo.id.toString()
-            });
-
-            const [detailResponse, analyticsResponse] = await Promise.allSettled([
-              fetch(`${detailUrl}?${detailParams}`, {
-                headers: {
-                  "Authorization": `Bearer ${apiKey}`,
-                  "Accept": "application/json"
-                }
-              }),
-              fetch(`https://api.tokenmetrics.com/v1/analytics/token?token_id=${tokenInfo.id}`, {
-                headers: {
-                  "Authorization": `Bearer ${apiKey}`,
-                  "Accept": "application/json"
-                }
-              })
-            ]);
-
-            let combinedData = { ...tokenInfo };
-
-            if (detailResponse.status === "fulfilled" && detailResponse.value.ok) {
-              const detailData = await detailResponse.value.json();
-              if (detailData.success && detailData.data) {
-                combinedData = { ...combinedData, ...detailData.data };
-              }
-            }
-
-            if (analyticsResponse.status === "fulfilled" && analyticsResponse.value.ok) {
-              const analyticsData = await analyticsResponse.value.json();
-              if (analyticsData.success && analyticsData.data) {
-                combinedData = { ...combinedData, analytics: analyticsData.data };
-              }
-            }
-
-            tmData = combinedData;
-            console.log(`TokenMetrics detailed data retrieved for: ${tokenInfo.symbol}`);
-          } catch (detailError) {
-            console.log("TokenMetrics detail fetch failed:", detailError);
-            tmData = tokenInfo; // Use basic search data as fallback
-          }
-        }
-      }
-    }
-
-    return tmData;
-  } catch (error) {
-    console.error("TokenMetrics fetch error:", error);
-    return null;
-  }
-}
-
-// Real CoinGecko API integration for enhanced data
-async function fetchCoinGeckoData(token: string) {
-  try {
-    let tokenData = null
-
-    // If it looks like a contract address, search for it
-    if (token.startsWith("0x") && token.length === 42) {
-      const contractUrl = `https://api.coingecko.com/api/v3/coins/ethereum/contract/${token}`
-      console.log(`Fetching CoinGecko contract data for: ${token}`)
-      
-      const contractResponse = await fetch(contractUrl, {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "Crypto-Scam-Detector/1.0",
-        }
-      })
-
-      if (contractResponse.ok) {
-        tokenData = await contractResponse.json()
-        console.log(`Real CoinGecko contract data found for: ${token}`)
-      } else {
-        console.log(`CoinGecko contract lookup failed: ${contractResponse.status}`)
-      }
-    } else {
-      // Search by name/symbol first
-      const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(token)}`
-      console.log(`Searching CoinGecko for: ${token}`)
-      
-      const searchResponse = await fetch(searchUrl, {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "Crypto-Scam-Detector/1.0",
-        }
-      })
-
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json()
-        if (searchData.coins && searchData.coins.length > 0) {
-          const tokenId = searchData.coins[0].id
-          console.log(`Found CoinGecko token ID: ${tokenId}`)
-
-          // Get detailed token data
-          const detailUrl = `https://api.coingecko.com/api/v3/coins/${tokenId}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false`
-          const detailResponse = await fetch(detailUrl, {
-            headers: {
-              Accept: "application/json",
-              "User-Agent": "Crypto-Scam-Detector/1.0",
-            }
-          })
-
-          if (detailResponse.ok) {
-            tokenData = await detailResponse.json()
-            console.log(`Real CoinGecko detailed data retrieved for: ${tokenId}`)
-          }
-        }
-      }
-    }
-
-    return tokenData
-  } catch (error) {
-    console.error("CoinGecko fetch error:", error)
-    return null
-  }
-}
-
 // Generate realistic token analysis data for demo purposes
-// Enhanced function that combines real CoinGecko data with realistic analysis
-async function generateEnhancedTokenAnalysis(token: string) {
-  console.log(`Starting enhanced analysis for token: ${token}`)
-  
-  // Try to fetch real CoinGecko data and TokenMetrics data
-  const TOKENMETRICS_API_KEY = process.env.TOKENMETRICS_API_KEY;
-  
-  const [realCoinGeckoData, realTokenMetricsData] = await Promise.allSettled([
-    fetchCoinGeckoData(token),
-    fetchTokenMetricsData(token, TOKENMETRICS_API_KEY)
-  ]);
-
-  const coinGeckoData = realCoinGeckoData.status === "fulfilled" ? realCoinGeckoData.value : null;
-  const tokenMetricsData = realTokenMetricsData.status === "fulfilled" ? realTokenMetricsData.value : null;
-  
-  console.log(`API Results: CoinGecko=${realCoinGeckoData.status}, TokenMetrics=${realTokenMetricsData.status}`);
-  
-  // Pre-defined realistic token scenarios for fallback
+function generateRealisticTokenAnalysis(token: string) {
+  // Pre-defined realistic token scenarios
   const tokenScenarios = {
     // Low risk tokens
     "ETH": {
@@ -278,65 +53,10 @@ async function generateEnhancedTokenAnalysis(token: string) {
       scenario: "scam"
     }
   }
-  // Check if we have a predefined scenario or real data
+
+  // Check if we have a predefined scenario
   const upperToken = token.toUpperCase()
   let tokenData = tokenScenarios[upperToken as keyof typeof tokenScenarios]
-    // If we have real CoinGecko data, use it to override/enhance our data
-  if (coinGeckoData && coinGeckoData.market_data) {
-    console.log(`Using real CoinGecko data for: ${token}`)
-    
-    // Extract real market data
-    const realMarketCap = coinGeckoData.market_data.market_cap?.usd || 0
-    const realVolume24h = coinGeckoData.market_data.total_volume?.usd || 0
-    const realPrice = coinGeckoData.market_data.current_price?.usd || 0
-    
-    // Calculate realistic risk score based on real data
-    let calculatedRiskScore = 35 // Base score
-    
-    // Adjust risk score based on real metrics
-    const volumeToMarketCapRatio = realMarketCap > 0 ? (realVolume24h / realMarketCap) * 100 : 0
-    
-    if (volumeToMarketCapRatio < 0.5) calculatedRiskScore += 20 // Low liquidity
-    if (volumeToMarketCapRatio > 20) calculatedRiskScore += 15 // Potential wash trading
-    if (realMarketCap < 1000000) calculatedRiskScore += 25 // Very small market cap
-    if (realMarketCap > 1000000000) calculatedRiskScore -= 15 // Large, established token
-    
-    // Check for suspicious patterns
-    if (coinGeckoData.name?.toLowerCase().includes('safe') || 
-        coinGeckoData.name?.toLowerCase().includes('moon') ||
-        coinGeckoData.name?.toLowerCase().includes('rocket')) {
-      calculatedRiskScore += 30
-    }
-    
-    tokenData = {
-      name: coinGeckoData.name || `${token} Token`,
-      symbol: coinGeckoData.symbol?.toUpperCase() || token.toUpperCase(),
-      riskScore: Math.min(100, Math.max(5, calculatedRiskScore)),
-      marketCap: realMarketCap,
-      volume24h: realVolume24h,
-      price: realPrice,
-      scenario: calculatedRiskScore > 70 ? "suspicious" : calculatedRiskScore > 40 ? "generic" : "established"
-    }
-    
-    console.log(`Real data analysis: MC=${realMarketCap}, Vol=${realVolume24h}, Price=${realPrice}, Risk=${tokenData.riskScore}`)
-  }
-
-  // If we have TokenMetrics data, use it to enhance our analysis
-  if (tokenMetricsData) {
-    console.log(`Using TokenMetrics data for: ${token}`)
-    
-    // Override with TokenMetrics data if available
-    if (tokenMetricsData.market_cap) tokenData.marketCap = tokenMetricsData.market_cap;
-    if (tokenMetricsData.volume_24h) tokenData.volume24h = tokenMetricsData.volume_24h;
-    if (tokenMetricsData.price) tokenData.price = tokenMetricsData.price;
-    if (tokenMetricsData.name) tokenData.name = tokenMetricsData.name;
-    if (tokenMetricsData.symbol) tokenData.symbol = tokenMetricsData.symbol.toUpperCase();
-    
-    // Adjust risk score based on TokenMetrics analytics
-    if (tokenMetricsData.analytics?.risk_score) {
-      tokenData.riskScore = Math.min(100, Math.max(5, tokenMetricsData.analytics.risk_score));
-    }
-  }
 
   // If not predefined, generate realistic data based on token characteristics
   if (!tokenData) {
@@ -507,13 +227,15 @@ async function generateEnhancedTokenAnalysis(token: string) {
     return flags
   }
 
-  const redFlags = generateRedFlags(tokenData.scenario, breakdown)  // Generate realistic API data with real CoinGecko data when available
-  const generateApiData = (tokenData: any, scenario: string, realCgData: any, realTmData: any) => {
+  const redFlags = generateRedFlags(tokenData.scenario, breakdown)
+
+  // Generate realistic API data
+  const generateApiData = (tokenData: any, scenario: string) => {
     const isContract = token.startsWith('0x')
-    const contractAddress = isContract ? token : realCgData?.contract_address || "0x" + Math.random().toString(16).substr(2, 40)
+    const contractAddress = isContract ? token : "0x" + Math.random().toString(16).substr(2, 40)
 
     return {
-      coinGecko: realCgData || {
+      coinGecko: {
         id: tokenData.symbol.toLowerCase(),
         symbol: tokenData.symbol.toLowerCase(),
         name: tokenData.name,
@@ -586,7 +308,7 @@ async function generateEnhancedTokenAnalysis(token: string) {
           }
         }
       },
-      tokenMetrics: realTmData || {
+      tokenMetrics: {
         name: tokenData.name,
         symbol: tokenData.symbol,
         contract_address: contractAddress,
@@ -605,14 +327,13 @@ async function generateEnhancedTokenAnalysis(token: string) {
       }
     }
   }
-  const apiData = generateApiData(tokenData, tokenData.scenario, coinGeckoData, tokenMetricsData)
-  // Calculate data quality - higher score if we have real data
-  const hasRealData = coinGeckoData || tokenMetricsData;
+
+  const apiData = generateApiData(tokenData, tokenData.scenario)
+
+  // Calculate data quality
   const dataQuality = {
-    score: hasRealData ? 95 : (tokenData.scenario === "scam" ? 60 : 85),
-    details: hasRealData 
-      ? `5/5 API sources available with real data. ${coinGeckoData ? "✅ CoinGecko (Real)" : "✅ CoinGecko"} ✅ Etherscan ✅ Uniswap ✅ BitQuery ${tokenMetricsData ? "✅ TokenMetrics (Real)" : "✅ TokenMetrics"} (95% data quality)`
-      : tokenData.scenario === "scam" 
+    score: tokenData.scenario === "scam" ? 60 : 85,
+    details: tokenData.scenario === "scam" 
       ? "3/5 API sources available. ✅ CoinGecko ❌ Etherscan ✅ Uniswap ❌ BitQuery ✅ TokenMetrics (60% data quality)"
       : "5/5 API sources available. ✅ CoinGecko ✅ Etherscan ✅ Uniswap ✅ BitQuery ✅ TokenMetrics (85% data quality)",
     sources: {
@@ -650,13 +371,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token address or name is required" }, { status: 400 })
     }
 
-    // Add small delay to demonstrate loading state and API calls
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Generate enhanced analysis combining real and dummy data
-    console.log(`Generating enhanced analysis for token: ${token}`)
-    const enhancedData = await generateEnhancedTokenAnalysis(token)
-    return NextResponse.json(enhancedData)
+    // Generate realistic dummy data for demo purposes
+    console.log(`Generating realistic analysis for token: ${token}`)
+    const realisticData = generateRealisticTokenAnalysis(token)
+    return NextResponse.json(realisticData)
 
   } catch (error) {
     console.error("Token analysis error:", error)
